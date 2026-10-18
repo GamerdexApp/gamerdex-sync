@@ -111,6 +111,20 @@ describe('GoogleDriveProvider.write(): create', () => {
     expect(fake.contentOf('data.json')).toBe('theirs');
   });
 
+  it('still works when the search does not list the item that was just created', async () => {
+    const { fake, provider } = setup();
+    fake.hooks.beforeFolderCreate = () => {
+      fake.options.listMisses = 1;
+    };
+    fake.hooks.beforeFileCreate = () => {
+      fake.options.listMisses = 1;
+    };
+    const { version } = await provider.write(PATH, 'one', null);
+    expect(fake.contentOf('data.json')).toBe('one');
+    expect((await provider.read(PATH))?.version).toBe(version);
+    expect([...fake.items.values()].filter((i) => i.folder)).toHaveLength(2);
+  });
+
   it('picks by id when two items have the same creation time', async () => {
     const { fake, provider } = setup();
     const gamerdex = fake.seedFolder('Gamerdex', 'root', '2026-02-01T00:00:00.000Z');

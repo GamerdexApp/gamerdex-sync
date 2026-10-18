@@ -25,6 +25,10 @@ const quoted = (value: string): string => `'${value.replace(/[\\']/g, '\\$&')}'`
 const oldestFirst = (a: DriveItem, b: DriveItem): number =>
   a.createdTime.localeCompare(b.createdTime) || a.id.localeCompare(b.id);
 
+/** The search can lag behind a create, so the item that was just created is always part of it. */
+const withOwn = (found: DriveItem[], own: DriveItem): DriveItem[] =>
+  (found.some((item) => item.id === own.id) ? found : [...found, own]).sort(oldestFirst);
+
 const reasonOf = (body: unknown): string | undefined => {
   if (!isRecord(body) || !isRecord(body.error) || !Array.isArray(body.error.errors))
     return undefined;
@@ -91,7 +95,7 @@ export class GoogleDriveProvider implements SyncProvider {
     if ((await this.children(parentId, name)).length > 0) throw new VersionConflictError(path);
 
     const created = await this.createFile(parentId, name, content);
-    const [oldest] = await this.children(parentId, name);
+    const [oldest] = withOwn(await this.children(parentId, name), created);
     if (oldest.id !== created.id) {
       await this.deleteItem(created.id);
       throw new VersionConflictError(path);
@@ -135,17 +139,17 @@ export class GoogleDriveProvider implements SyncProvider {
     if (found.length > 0) return found[0].id;
     if (!create) return null;
 
-    const response = await this.request('POST', `${API}/files?fields=id`, {
+    const response = await this.request('POST', `${API}/files?fields=id,createdTime`, {
       body: JSON.stringify({ name, mimeType: FOLDER_TYPE, parents: [parentId] }),
       headers: { 'Content-Type': 'application/json' },
     });
-    const id = this.stringField(await response.json(), 'id');
-    const [oldest] = await this.children(parentId, name, true);
-    if (oldest.id !== id) {
-      await this.deleteItem(id);
+    const created = this.itemOf(await response.json());
+    const [oldest] = withOwn(await this.children(parentId, name, true), created);
+    if (oldest.id !== created.id) {
+      await this.deleteItem(created.id);
       return oldest.id;
     }
-    return id;
+    return created.id;
   }
 
   private async children(parentId: string, name: string, folder = false): Promise<DriveItem[]> {
@@ -217,7 +221,7 @@ export class GoogleDriveProvider implements SyncProvider {
     parentId: string,
     name: string,
     content: string,
-  ): Promise<{ id: string; version: string }> {
+  ): Promise<DriveItem & { version: string }> {
     const boundary = `gamerdex-${crypto.randomUUID()}`;
     const metadata = JSON.stringify({ name, parents: [parentId], mimeType: 'application/json' });
     const body =
@@ -225,18 +229,19 @@ export class GoogleDriveProvider implements SyncProvider {
       `--${boundary}\r\nContent-Type: application/json\r\n\r\n${content}\r\n--${boundary}--`;
     const response = await this.request(
       'POST',
-      `${UPLOAD}/files?uploadType=multipart&fields=id,headRevisionId`,
+      `${UPLOAD}/files?uploadType=multipart&fields=id,headRevisionId,createdTime`,
       { body, headers: { 'Content-Type': `multipart/related; boundary=${boundary}` } },
     );
     const answer: unknown = await response.json();
-    return {
-      id: this.stringField(answer, 'id'),
-      version: this.stringField(answer, 'headRevisionId'),
-    };
+    return { ...this.itemOf(answer), version: this.stringField(answer, 'headRevisionId') };
   }
 
   private async deleteItem(id: string): Promise<void> {
     await this.request('DELETE', `${API}/files/${encodeURIComponent(id)}`, { allowMissing: true });
+  }
+
+  private itemOf(body: unknown): DriveItem {
+    return { id: this.stringField(body, 'id'), createdTime: this.stringField(body, 'createdTime') };
   }
 
   private stringField(body: unknown, field: string): string {

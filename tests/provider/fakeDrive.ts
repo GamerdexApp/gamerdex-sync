@@ -34,6 +34,7 @@ export const createFakeDrive = () => {
     beforeUpload: null as null | ((item: Item) => void),
   };
   const options = {
+    listMisses: 0,
     sameContentMakesRevision: true,
     hideRevisions: 'none' as 'none' | 'head' | 'all-but-head',
   };
@@ -104,15 +105,20 @@ export const createFakeDrive = () => {
 
     if (method === 'GET' && path === '/drive/v3/files') {
       const { name, parent, folder } = parseQuery(parsed.searchParams.get('q') ?? '');
-      const files = [...items.values()]
-        .filter((i) => i.name === name && i.parent === parent && i.folder === folder && !i.trashed)
-        .map((i) => ({ id: i.id, createdTime: i.createdTime }));
-      return json(200, { files });
+      const matches = [...items.values()].filter(
+        (i) => i.name === name && i.parent === parent && i.folder === folder && !i.trashed,
+      );
+      if (options.listMisses > 0) {
+        options.listMisses -= 1;
+        matches.pop();
+      }
+      return json(200, { files: matches.map((i) => ({ id: i.id, createdTime: i.createdTime })) });
     }
     if (method === 'POST' && path === '/drive/v3/files') {
       const meta = JSON.parse(body) as { name: string; parents: string[] };
       hooks.beforeFolderCreate?.(meta.parents[0], meta.name);
-      return json(200, { id: add(meta.name, meta.parents[0], true).id });
+      const folder = add(meta.name, meta.parents[0], true);
+      return json(200, { id: folder.id, createdTime: folder.createdTime });
     }
     if (method === 'POST' && path === '/upload/drive/v3/files') {
       const boundary = /boundary=(.+)$/.exec(headers['Content-Type'])?.[1] ?? '';
@@ -124,7 +130,11 @@ export const createFakeDrive = () => {
       const content = parts[1].split('\r\n\r\n')[1].replace(/\r\n$/, '');
       hooks.beforeFileCreate?.(meta.parents[0], meta.name);
       const item = add(meta.name, meta.parents[0], false, content);
-      return json(200, { id: item.id, headRevisionId: item.revisions[0].id });
+      return json(200, {
+        id: item.id,
+        headRevisionId: item.revisions[0].id,
+        createdTime: item.createdTime,
+      });
     }
     const upload1 = /^\/upload\/drive\/v3\/files\/([^/]+)$/.exec(path);
     if (method === 'PATCH' && upload1) {
