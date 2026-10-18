@@ -7,6 +7,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-18
+
+### Fixed
+
+- `GoogleDriveProvider` no longer fails when the Drive search does not list a file or folder that it
+  has just created. Drive can lag behind a create, so the provider now counts the new item with the
+  creation time that Drive returns.
+
 ## [0.2.0] - 2026-10-17
 
 ### Added
