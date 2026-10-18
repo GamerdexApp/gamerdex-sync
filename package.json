@@ -1,0 +1,63 @@
+{
+  "name": "@gamerdexapp/gamerdex-sync",
+  "version": "0.0.0",
+  "description": "Shared cloud sync for the Gamerdex apps: provider connections, file layout, revisions and a three way merge of the saved data.",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "tsc --noEmit && eslint .",
+    "format": "prettier --write \"**/*.ts\" \"**/*.md\" \"**/*.json\"",
+    "format:check": "prettier --check \"**/*.ts\" \"**/*.md\" \"**/*.json\"",
+    "typecheck": "tsc --noEmit",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "author": "Christopher Pezza",
+  "license": "MIT",
+  "engines": {
+    "node": ">=24"
+  },
+  "devDependencies": {
+    "@trivago/prettier-plugin-sort-imports": "^6.0.2",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^26.6.2",
+    "@typescript-eslint/eslint-plugin": "^8.70.0",
+    "@typescript-eslint/parser": "^8.71.0",
+    "eslint": "^10.11.0",
+    "eslint-config-prettier": "^10.1.8",
+    "jest": "^30.5.2",
+    "prettier": "^3.9.8",
+    "ts-jest": "^29.4.12",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.3"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gamerdexapp/gamerdex-sync.git"
+  },
+  "homepage": "https://github.com/gamerdexapp/gamerdex-sync#readme",
+  "bugs": {
+    "url": "https://github.com/gamerdexapp/gamerdex-sync/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
