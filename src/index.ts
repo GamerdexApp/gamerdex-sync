@@ -17,3 +17,7 @@ export * from './auth/urls';
 export * from './provider/repositories';
 export * from './provider/drive';
 export * from './auth/google';
+export * from './provider/dropbox';
+export * from './provider/onedrive';
+export * from './auth/dropbox';
+export * from './auth/microsoft';

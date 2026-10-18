@@ -12,7 +12,7 @@
 
 | Topic          | Decision                                                                                                                                                                                                                                 |
 | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Provider       | GitHub first. A private repository that the player owns. Google Drive, Dropbox and OneDrive follow later behind the same interface.                                                                                                      |
+| Provider       | GitHub first. A private repository that the player owns. Google Drive, Dropbox and OneDrive sit behind the same interface.                                                                                                               |
 | Folder         | `Gamerdex/<app id>/` in the repository, so every app shares one visible folder.                                                                                                                                                          |
 | Files          | `data.json` and `meta.json`. See the README.                                                                                                                                                                                             |
 | Data format    | The saved data of the app, in the same shape as its backup file. The active chief and the sign in are device values and never sync.                                                                                                      |
@@ -121,6 +121,48 @@ the player decides.
   app to production before real players use it.
 - Google's code exchange needs the client secret, so it runs in `gamerdex-auth`. Google's refresh
   answer has no new refresh token and no refresh lifetime, so the auth route fills both in.
+
+## Dropbox notes
+
+- An upload in `update` mode with the revision that was read fails when the file changed since, and
+  an upload in `add` mode fails when the file exists. Both set `strict_conflict`, so a file that was
+  removed since also fails, and both set `autorename` off, so Dropbox never makes a "conflicted
+  copy". The failure is a 409 with a conflict tag and becomes `VersionConflictError`.
+- A delete sends the revision as `parent_rev`. Dropbox does not say which error a revision that no
+  longer matches gives, so the provider reads the file again after a not found answer and throws
+  `VersionConflictError` when the file is still there.
+- The app needs the App folder access type and the `files.content.read` and `files.content.write`
+  scopes. The files sit under `Apps/<app name>/Gamerdex/<app id>/`.
+- Dropbox refresh tokens do not expire and never change, and the refresh answer has none, so
+  `gamerdex-auth` returns the refresh token that it was given, with a 180 day lifetime.
+- An upload creates the folders of its path. The version is the `rev` that Dropbox returns.
+- The file arguments travel in the `Dropbox-API-Arg` header, which must be ASCII, so the provider
+  writes every other character as a `\u` escape.
+- Written from the Dropbox documentation and tested against a fake. It still needs a run against the
+  real API (`scripts/live-provider-check.mjs`), above all for the browser: the content endpoints
+  must accept cross origin calls with this header and expose `Dropbox-API-Result`.
+
+## OneDrive notes
+
+- The app folder (`/me/drive/special/approot`) needs only the `Files.ReadWrite.AppFolder` scope.
+  OneDrive creates it under `Apps` on the first call, named after the app registration. Microsoft
+  documents it for personal accounts, so sign in uses the `consumers` endpoint.
+- A write by path sends the `eTag` that was read in `If-Match`, and a new file is created with
+  `conflictBehavior=fail`. The documentation shows `If-Match` with a 412 answer for upload sessions
+  and metadata updates. It does not show it for the simple `PUT` content call, so this needs a run
+  against the real API (`scripts/live-provider-check.mjs`) before the provider is released to
+  players. If `If-Match` is ignored there, the provider must verify the version the way the Drive
+  provider does.
+- A write that expects a file that was removed gets 412 or 404, or creates the file again. All three
+  end as `VersionConflictError`. The write that created the file is not rolled back.
+- A read asks for the file metadata first and then for the content through the signed download
+  address, which must not carry the token. The version is read before the content, so a change in
+  between gives a stale version, which fails the next write and never overwrites silently.
+- Microsoft throttles with 429 and sometimes 503, both with `Retry-After`.
+- A refresh sends a new refresh token and the old one must be dropped. A refresh token ends after 90
+  days without use. `gamerdex-auth` returns the new token with an 80 day lifetime.
+- Sign in uses a Web redirect URI with a client secret, so the secret stays in `gamerdex-auth`. A
+  single page application redirect would refuse the secret and end refresh tokens after 24 hours.
 
 ## Open points
 

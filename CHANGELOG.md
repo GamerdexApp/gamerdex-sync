@@ -7,6 +7,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-18
+
+### Added
+
+- `DropboxProvider` keeps the files in the app folder of the Dropbox of the player. It writes with
+  the revision that was read and fails with a version conflict when the file changed since.
+- `OneDriveProvider` keeps the files in the app folder of the OneDrive of a personal Microsoft
+  account. It writes with the `eTag` that was read and creates a new file only when none exists.
+- `dropboxAuthorizeUrl()` with `DROPBOX_SCOPES`, and `microsoftAuthorizeUrl()` with
+  `ONEDRIVE_FILE_SCOPE` and `ONEDRIVE_SCOPES`, for the two sign in pages.
+- `ProviderError.detail` also reads the summary of a failed Dropbox request.
+
 ## [0.2.1] - 2026-10-18
 
 ### Fixed

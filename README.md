@@ -28,7 +28,7 @@ const result = await sync({
   appId: "my-app",
   deviceId: "device-1",
   deviceName: "Laptop",
-  provider: new MemoryProvider(), // GitHubProvider in an app
+  provider: new MemoryProvider(), // GitHubProvider, GoogleDriveProvider, DropboxProvider or OneDriveProvider in an app
   schema,
   local: { chief: { level: 5 } },
   state: null, // the state that the last sync returned, or null on the first sync
