@@ -1,6 +1,6 @@
 import { dataPath, metaPath } from '@/layout';
 import { Schema } from '@/merge/types';
-import { parseMeta } from '@/meta';
+import { emptyMeta, parseMeta } from '@/meta';
 import { MemoryProvider } from '@/provider/memory';
 import { ProviderError, RemoteFile } from '@/provider/types';
 import { RemoteDataError, sync, SyncBusyError, SyncOptions, SyncState } from '@/sync/sync';
@@ -248,15 +248,58 @@ describe('sync(): later syncs', () => {
   });
 });
 
+describe('sync(): a sync that changes nothing', () => {
+  it('writes no file when the device is already recorded', async () => {
+    const provider = new MemoryProvider();
+    const a = device(provider, 'a', { x: { y: 1 } });
+    await a.run();
+    const data = (await provider.read(dataPath(APP)))?.version;
+    const meta = (await provider.read(metaPath(APP)))?.version;
+    const write = jest.spyOn(provider, 'write');
+    const result = await a.run();
+    expect(result).toMatchObject({ status: 'synced', uploaded: false });
+    expect(write).not.toHaveBeenCalled();
+    expect((await provider.read(dataPath(APP)))?.version).toBe(data);
+    expect((await provider.read(metaPath(APP)))?.version).toBe(meta);
+    expect(a.state?.metaVersion).toBe(meta);
+  });
+
+  it('records the device once when it joins data that is already the same', async () => {
+    const provider = new MemoryProvider();
+    await device(provider, 'a', { x: { y: 1 } }).run();
+    const b = device(provider, 'b', { x: { y: 1 } });
+    expect(await b.run()).toMatchObject({ uploaded: false });
+    const meta = parseMeta((await provider.read(metaPath(APP)))?.content ?? '', APP);
+    expect(meta).toMatchObject({ ok: true, meta: { devices: { a: {}, b: {} } } });
+    const write = jest.spyOn(provider, 'write');
+    await b.run();
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it('still writes the meta file when the app changes the revisions', async () => {
+    const provider = new MemoryProvider();
+    const a = device(provider, 'a', { x: { y: 1 } });
+    await a.run();
+    const write = jest.spyOn(provider, 'write');
+    await a.run({ updateMeta: (meta) => ({ ...meta, settingsRevision: 1 }) });
+    expect(write).toHaveBeenCalledTimes(1);
+    expect(write.mock.calls[0][0]).toBe(metaPath(APP));
+  });
+});
+
 describe('sync(): other devices write during the sync', () => {
   class Interfering extends MemoryProvider {
-    constructor(private readonly times: number) {
+    constructor(
+      private readonly times: number,
+      private readonly onlyPath?: string,
+    ) {
       super();
     }
     interfere: ((path: string) => Promise<void>) | null = null;
     private done = 0;
     async write(path: string, content: string, expected: string | null) {
-      if (this.interfere && this.done < this.times) {
+      const matches = this.onlyPath === undefined || this.onlyPath === path;
+      if (this.interfere && matches && this.done < this.times) {
         this.done += 1;
         await this.interfere(path);
       }
@@ -294,22 +337,14 @@ describe('sync(): other devices write during the sync', () => {
   });
 
   it('retries the meta file when it changed between the read and the write', async () => {
-    const provider = new Interfering(1);
+    const provider = new Interfering(1, metaPath(APP));
     provider.interfere = async (path) => {
-      if (path === metaPath(APP))
-        await provider.rawWrite(path, (await provider.read(path))?.content ?? '');
+      await provider.rawWrite(path, JSON.stringify(emptyMeta(APP)));
     };
     const a = device(provider, 'a', { x: { y: 1 } });
-    await a.run();
-    await provider.rawWrite(metaPath(APP), (await provider.read(metaPath(APP)))?.content ?? '');
-    provider.interfere = async (path) => {
-      if (path === metaPath(APP)) {
-        await provider.rawWrite(path, (await provider.read(path))?.content ?? '');
-      }
-    };
-    const again = new Interfering(1);
-    again.interfere = provider.interfere;
-    expect(await a.run()).toMatchObject({ status: 'synced' });
+    expect(await a.run()).toMatchObject({ status: 'synced', uploaded: true });
+    const meta = parseMeta((await provider.read(metaPath(APP)))?.content ?? '', APP);
+    expect(meta).toMatchObject({ ok: true, meta: { devices: { a: { name: 'Device a' } } } });
   });
 
   it('stops with a busy error when the cloud keeps changing', async () => {
@@ -337,14 +372,13 @@ describe('sync(): other devices write during the sync', () => {
   });
 
   it('stops with a busy error when the meta file keeps changing', async () => {
-    const provider = new Interfering(99);
+    const provider = new Interfering(99, metaPath(APP));
     const a = device(provider, 'a', { x: { y: 1 } });
     await a.run();
     provider.interfere = async (path) => {
-      if (path === metaPath(APP)) {
-        await provider.rawWrite(path, (await provider.read(path))?.content ?? '');
-      }
+      await provider.rawWrite(path, (await provider.read(path))?.content ?? '');
     };
+    a.local = { x: { y: 2 } };
     await expect(a.run()).rejects.toBeInstanceOf(SyncBusyError);
   });
 });
@@ -413,6 +447,7 @@ describe('sync(): provider failures', () => {
       if (path === metaPath(APP)) throw new ProviderError('server', 'down');
       return original(path, content, version);
     });
+    a.local = { x: { y: 2 } };
     await expect(a.run()).rejects.toMatchObject({ kind: 'server' });
   });
 });

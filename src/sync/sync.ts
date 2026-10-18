@@ -93,11 +93,18 @@ const readMeta = (text: string | undefined, appId: string): SyncMeta => {
   return parsed.meta;
 };
 
-const writeMeta = async (options: SyncOptions): Promise<string> => {
+/**
+ * Records this device and the time of the sync in the meta file. A sync that changed nothing writes
+ * no file when this device is already recorded, so the repository gets no empty commits.
+ */
+const writeMeta = async (options: SyncOptions, uploaded: boolean): Promise<string> => {
   const { provider, appId, deviceId, deviceName, updateMeta, now } = options;
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
     const current = await provider.read(metaPath(appId));
     const meta = readMeta(current?.content, appId);
+    if (current && !uploaded && !updateMeta && Object.hasOwn(meta.devices, deviceId)) {
+      return current.version;
+    }
     const time = now();
     const updated = withDevice(updateMeta ? updateMeta(meta) : meta, deviceId, {
       name: deviceName,
@@ -139,7 +146,7 @@ export const sync = async (options: SyncOptions): Promise<SyncResult> => {
       const cloud = restoreCloudValues(local, undefined, schema);
       const created = await tryWrite(provider, path, cloud, null);
       if (created === null) continue;
-      const metaVersion = await writeMeta(options);
+      const metaVersion = await writeMeta(options, true);
       return done(local, cloud, created, metaVersion, [], true);
     }
 
@@ -155,13 +162,13 @@ export const sync = async (options: SyncOptions): Promise<SyncResult> => {
     }
 
     if (equal(merged.cloud, remote)) {
-      const metaVersion = await writeMeta(options);
+      const metaVersion = await writeMeta(options, false);
       return done(merged.merged, merged.cloud, file.version, metaVersion, merged.conflicts, false);
     }
 
     const version = await tryWrite(provider, path, merged.cloud, file.version);
     if (version === null) continue;
-    const metaVersion = await writeMeta(options);
+    const metaVersion = await writeMeta(options, true);
     return done(merged.merged, merged.cloud, version, metaVersion, merged.conflicts, true);
   }
   throw new SyncBusyError();
