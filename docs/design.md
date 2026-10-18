@@ -64,6 +64,8 @@ the player decides.
 - `getToken` is called for every request, so a token that expires can refresh first.
 - `checkRepository()` refuses a public repository and a token that cannot write. The saved data must
   never sit in a public repository.
+- `ProviderError.detail` holds the `message` that GitHub sent with the failure, cut to 300
+  characters. It is for logs and support. It is English text from GitHub and is not translated.
 - Errors have a kind (`auth`, `rate-limit`, `not-found`, `network`, `server`, `invalid`) so the app
   can say what to do. `rate-limit` carries the seconds to wait when GitHub says so.
 - The GitHub behaviors above were written from the GitHub documentation and are tested against a
@@ -80,6 +82,9 @@ the player decides.
 - A write refused with `VersionConflictError` makes `sync()` read and merge again, up to four times,
   then throw `SyncBusyError`. The data file is written before the meta file. A failed meta write
   does not undo the data write, and the next sync repairs it.
+- A sync that changes nothing writes no file. The meta file is written when data was uploaded, when
+  this device is not yet recorded in it, and when the app passes `updateMeta`. `lastSeenAt` of a
+  device is therefore the time of its last upload or its first sync, not of its last check.
 - The cloud data and the merged data must pass the app `validate` before any write. A failure throws
   `RemoteDataError` and nothing is written.
 

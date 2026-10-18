@@ -7,6 +7,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-17
+
+### Added
+
+- `ProviderError.detail` carries the message that GitHub sends with a failed request, such as
+  "Resource not accessible by integration", so an app can log the reason of a failure.
+
+### Changed
+
+- A sync that changes nothing no longer writes the meta file, so the repository gets no empty
+  commits. The meta file is still written when data is uploaded, when a device syncs for the first
+  time, and when the app changes the revisions.
+
 ## [0.1.0] - 2026-10-17
 
 First release.
