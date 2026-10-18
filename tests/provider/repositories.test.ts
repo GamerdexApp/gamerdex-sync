@@ -83,6 +83,22 @@ describe('listInstalledRepositories()', () => {
     ).toBe('network');
   });
 
+  it('carries the message that GitHub sent with a failure', async () => {
+    const detailOf = async (response: Response) => {
+      const send = (async () => response) as unknown as typeof fetch;
+      const error = await listInstalledRepositories('t', send).then(
+        () => null,
+        (caught: unknown) => caught,
+      );
+      return (error as ProviderError).detail;
+    };
+    expect(await detailOf(json({ message: 'Bad credentials' }, 401))).toBe('Bad credentials');
+    expect(await detailOf(json({ message: 'Forbidden' }, 403))).toBe('Forbidden');
+    expect(await detailOf(json({ message: 'Unavailable' }, 502))).toBe('Unavailable');
+    expect(await detailOf(json({ message: 'Teapot' }, 418))).toBe('Teapot');
+    expect(await detailOf(new Response('not json', { status: 403 }))).toBeUndefined();
+  });
+
   it('uses the global fetch when none is given', async () => {
     const spy = jest.spyOn(globalThis, 'fetch').mockResolvedValue(json({ installations: [] }));
     expect(await listInstalledRepositories('t')).toEqual([]);

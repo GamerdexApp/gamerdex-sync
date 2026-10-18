@@ -1,4 +1,5 @@
 import { decodeBase64, encodeBase64 } from './base64';
+import { detailOf } from './detail';
 import { ProviderError, RemoteFile, SyncProvider, VersionConflictError } from './types';
 
 const API = 'https://api.github.com';
@@ -154,7 +155,10 @@ export class GitHubProvider implements SyncProvider {
   private async assertOk(response: Response): Promise<void> {
     if (response.ok) return;
     const { status } = response;
-    if (status === 401) throw new ProviderError('auth', 'The token is not valid.', status);
+    const detail = await detailOf(response);
+    if (status === 401) {
+      throw new ProviderError('auth', 'The token is not valid.', status, undefined, detail);
+    }
     if (status === 403 || status === 429) {
       const limited = status === 429 || response.headers.get('x-ratelimit-remaining') === '0';
       if (limited) {
@@ -163,17 +167,33 @@ export class GitHubProvider implements SyncProvider {
           'GitHub limits the calls.',
           status,
           retryAfterOf(response),
+          detail,
         );
       }
-      throw new ProviderError('auth', 'The token has no permission for the repository.', status);
+      throw new ProviderError(
+        'auth',
+        'The token has no permission for the repository.',
+        status,
+        undefined,
+        detail,
+      );
     }
-    if (status === 404)
-      throw new ProviderError('not-found', 'The repository was not found.', status);
-    if (status >= 500) throw new ProviderError('server', 'GitHub failed.', status);
-    throw this.invalid(`GitHub answered ${status}.`, status);
+    if (status === 404) {
+      throw new ProviderError(
+        'not-found',
+        'The repository was not found.',
+        status,
+        undefined,
+        detail,
+      );
+    }
+    if (status >= 500) {
+      throw new ProviderError('server', 'GitHub failed.', status, undefined, detail);
+    }
+    throw this.invalid(`GitHub answered ${status}.`, status, detail);
   }
 
-  private invalid(message: string, status?: number): ProviderError {
-    return new ProviderError('invalid', message, status);
+  private invalid(message: string, status?: number, detail?: string): ProviderError {
+    return new ProviderError('invalid', message, status, undefined, detail);
   }
 }

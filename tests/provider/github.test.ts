@@ -192,6 +192,38 @@ describe('GitHubProvider errors', () => {
     expect(await kindOf(provider.read('a.json'))).toMatchObject({ kind: 'invalid', status: 418 });
   });
 
+  it('carries the message that GitHub sent with the failure', async () => {
+    const { fake, provider } = setup();
+    fake.failNext({ status: 403, body: { message: 'Resource not accessible by integration' } });
+    expect((await kindOf(provider.write('a.json', 'x', null))).detail).toBe(
+      'Resource not accessible by integration',
+    );
+    fake.failNext({ status: 401, body: { message: 'Bad credentials' } });
+    expect((await kindOf(provider.read('a.json'))).detail).toBe('Bad credentials');
+    fake.failNext({ status: 404, body: { message: 'Not Found' } });
+    expect((await kindOf(provider.write('a.json', 'x', null))).detail).toBe('Not Found');
+    fake.failNext({ status: 503, body: { message: 'Unavailable' } });
+    expect((await kindOf(provider.read('a.json'))).detail).toBe('Unavailable');
+    fake.failNext({ status: 418, body: { message: 'Teapot' } });
+    expect((await kindOf(provider.read('a.json'))).detail).toBe('Teapot');
+    fake.failNext({ status: 429, headers: { 'retry-after': '5' }, body: { message: 'Slow down' } });
+    expect((await kindOf(provider.read('a.json'))).detail).toBe('Slow down');
+  });
+
+  it('has no detail when the body has no message, is not JSON or is too long', async () => {
+    const { fake, provider } = setup();
+    fake.failNext({ status: 403, body: { other: 1 } });
+    expect((await kindOf(provider.read('a.json'))).detail).toBeUndefined();
+    fake.failNext({ status: 403, body: { message: 5 } });
+    expect((await kindOf(provider.read('a.json'))).detail).toBeUndefined();
+    fake.failNext({ status: 403, body: [] });
+    expect((await kindOf(provider.read('a.json'))).detail).toBeUndefined();
+    fake.failNext({ status: 403, raw: 'not json' });
+    expect((await kindOf(provider.read('a.json'))).detail).toBeUndefined();
+    fake.failNext({ status: 403, body: { message: 'x'.repeat(500) } });
+    expect((await kindOf(provider.read('a.json'))).detail).toHaveLength(300);
+  });
+
   it('maps a failed network to network', async () => {
     const { fake, provider } = setup();
     fake.goOffline();

@@ -1,3 +1,4 @@
+import { detailOf } from './detail';
 import { ProviderError } from './types';
 
 export interface InstalledRepository {
@@ -29,13 +30,26 @@ const getJson = async (
   } catch {
     throw new ProviderError('network', 'GitHub could not be reached.');
   }
-  if (response.status === 401 || response.status === 403) {
-    throw new ProviderError('auth', 'The token is not valid.', response.status);
+  if (!response.ok) {
+    const { status } = response;
+    const detail = await detailOf(response);
+    if (status === 401 || status === 403) {
+      throw new ProviderError('auth', 'The token is not valid.', status, undefined, detail);
+    }
+    if (status >= 500)
+      throw new ProviderError('server', 'GitHub failed.', status, undefined, detail);
+    throw new ProviderError(
+      'invalid',
+      'GitHub answer is not understood.',
+      status,
+      undefined,
+      detail,
+    );
   }
-  if (response.status >= 500) throw new ProviderError('server', 'GitHub failed.', response.status);
-  const body: unknown = response.ok ? await response.json().catch(() => null) : null;
-  if (!isRecord(body))
+  const body: unknown = await response.json().catch(() => null);
+  if (!isRecord(body)) {
     throw new ProviderError('invalid', 'GitHub answer is not understood.', response.status);
+  }
   return body;
 };
 

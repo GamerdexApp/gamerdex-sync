@@ -53,6 +53,8 @@ export class ProviderError extends Error {
     message: string,
     public readonly status?: number,
     public readonly retryAfterSeconds?: number,
+    /** The message that the provider sent with the failed request, when it sent one. */
+    public readonly detail?: string,
   ) {
     super(message);
     this.name = 'ProviderError';

@@ -16,6 +16,7 @@ export interface Override {
   status: number;
   headers?: Record<string, string>;
   body?: unknown;
+  raw?: string;
 }
 
 /** A small stand in for the GitHub contents API. It follows the status codes that GitHub uses. */
@@ -47,6 +48,9 @@ export const createFakeGitHub = (options: { token?: string; repository?: string 
     if (override) {
       const next = override;
       override = null;
+      if (next.raw !== undefined) {
+        return new Response(next.raw, { status: next.status, headers: next.headers });
+      }
       return json(next.status, next.body ?? {}, next.headers);
     }
     if (headers.Authorization !== `Bearer ${token}`)
