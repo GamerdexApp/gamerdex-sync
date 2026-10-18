@@ -15,3 +15,5 @@ export * from './auth/source';
 export * from './auth/tokens';
 export * from './auth/urls';
 export * from './provider/repositories';
+export * from './provider/drive';
+export * from './auth/google';

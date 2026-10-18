@@ -101,6 +101,27 @@ the player decides.
 - The callback page checks the `state` value that it saved before sign in (`readCallback`).
 - The tokens are saved in the browser on the device, outside the saved data, and are never synced.
 
+## Google Drive notes
+
+- Measured against the live API (2026-10-17): Drive ignores `If-Match` on updates, returns no ETag,
+  and a metadata change raises `version`. It does keep one revision for each upload with different
+  content, and each revision has an id and a readable body. The head revision id is the version.
+- A write checks that the head revision equals the expected version, uploads, then lists the
+  revisions and checks that the new revision sits directly on top of the expected one. A write by
+  another device between the check and the upload would otherwise be lost, so its content is read
+  from its revision and written back as the head, and `VersionConflictError` is thrown. The next
+  sync merges both sides. The window for this is the time of one upload.
+- A failure between the overwrite and the write back would leave the other device's content only in
+  the revision history. Drive keeps revisions of uploaded files for a limited time.
+- Creating a file or a folder can race too. After a create the provider lists the items with that
+  name, keeps the oldest one and removes its own copy when it lost.
+- `drive.file` is a non sensitive scope that needs only basic OAuth app verification. The app sees
+  only files that it created, so every Gamerdex app shares one client and one `Gamerdex` folder.
+- While the Google consent screen is in Testing, refresh tokens end after seven days. Publish the
+  app to production before real players use it.
+- Google's code exchange needs the client secret, so it runs in `gamerdex-auth`. Google's refresh
+  answer has no new refresh token and no refresh lifetime, so the auth route fills both in.
+
 ## Open points
 
 - The exact wording of the conflict screen and the first sync choices belong to the app.
