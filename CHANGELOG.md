@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-17
+
 ### Added
 
 - `GoogleDriveProvider` keeps the files in the Google Drive of the player, in a visible `Gamerdex`
@@ -14,6 +16,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   so the provider checks the head revision before the upload and the revision list after it. When
   another device wrote in between, its content is put back and the sync merges both sides.
 - `googleAuthorizeUrl()` and `GOOGLE_DRIVE_SCOPE` for the Google sign in page.
+- `ProviderError.detail` also reads the message of a failed Google request.
 
 ## [0.1.1] - 2026-10-17
 

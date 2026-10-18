@@ -1,6 +1,6 @@
 {
   "name": "@gamerdexapp/gamerdex-sync",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Shared cloud sync for the Gamerdex apps: provider connections, file layout, revisions and a three way merge of the saved data.",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
