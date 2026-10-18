@@ -178,11 +178,55 @@ describe('OneDriveProvider.write()', () => {
     },
   );
 
-  it('throws a version conflict when OneDrive creates a file that was expected to exist', async () => {
-    const { provider } = setup({ missingWithIfMatch: 201 });
+  it('removes the file that OneDrive created for a write that expected a removed file', async () => {
+    const { fake, provider } = setup({ missingWithIfMatch: 201 });
     await expect(provider.write('a.json', 'mine', 'etag9')).rejects.toBeInstanceOf(
       VersionConflictError,
     );
+    expect(fake.files.size).toBe(0);
+    expect(fake.requests.map((request) => request.method)).toEqual(['PUT', 'DELETE']);
+    expect(fake.requests[1].headers['If-Match']).toBe('etag1');
+  });
+
+  it('keeps going when another device changed the file that OneDrive created', async () => {
+    const { fake } = setup({ missingWithIfMatch: 201 });
+    const original = fake.fetch;
+    let calls = 0;
+    const racing = new OneDriveProvider({
+      getToken: async () => fake.token,
+      fetch: (async (...args: Parameters<typeof fetch>) => {
+        calls += 1;
+        if (calls === 2) fake.put('a.json', 'other device');
+        return original(...args);
+      }) as typeof fetch,
+    });
+    await expect(racing.write('a.json', 'mine', 'etag9')).rejects.toBeInstanceOf(
+      VersionConflictError,
+    );
+    expect(fake.files.get('a.json')?.content).toBe('other device');
+  });
+
+  it('reports a failed removal of the file that OneDrive created', async () => {
+    const { fake } = setup({ missingWithIfMatch: 201 });
+    const original = fake.fetch;
+    let calls = 0;
+    const failing = new OneDriveProvider({
+      getToken: async () => fake.token,
+      fetch: (async (...args: Parameters<typeof fetch>) => {
+        calls += 1;
+        return calls === 2 ? new Response('', { status: 500 }) : original(...args);
+      }) as typeof fetch,
+    });
+    expect((await providerErrorOf(failing.write('a.json', 'mine', 'etag9'))).kind).toBe('server');
+  });
+
+  it('still reports a conflict when the created file has no eTag to remove', async () => {
+    const { fake, provider } = setup();
+    fake.failNext({ status: 201, body: {} });
+    await expect(provider.write('a.json', 'mine', 'etag9')).rejects.toBeInstanceOf(
+      VersionConflictError,
+    );
+    expect(fake.requests).toHaveLength(1);
   });
 
   it('refuses an answer without an eTag', async () => {

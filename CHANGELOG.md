@@ -7,6 +7,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-18
+
+### Fixed
+
+- `OneDriveProvider` no longer brings back a file that another device removed. OneDrive creates a
+  file when a write with `If-Match` finds none. The provider now removes that file again and reports
+  a version conflict.
+
 ## [0.3.0] - 2026-10-18
 
 ### Added

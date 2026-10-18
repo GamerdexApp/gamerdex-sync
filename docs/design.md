@@ -148,13 +148,13 @@ the player decides.
   OneDrive creates it under `Apps` on the first call, named after the app registration. Microsoft
   documents it for personal accounts, so sign in uses the `consumers` endpoint.
 - A write by path sends the `eTag` that was read in `If-Match`, and a new file is created with
-  `conflictBehavior=fail`. The documentation shows `If-Match` with a 412 answer for upload sessions
-  and metadata updates. It does not show it for the simple `PUT` content call, so this needs a run
-  against the real API (`scripts/live-provider-check.mjs`) before the provider is released to
-  players. If `If-Match` is ignored there, the provider must verify the version the way the Drive
-  provider does.
-- A write that expects a file that was removed gets 412 or 404, or creates the file again. All three
-  end as `VersionConflictError`. The write that created the file is not rolled back.
+  `conflictBehavior=fail`. Measured against the live API (2026-10-18, personal account): the simple
+  `PUT` honors `If-Match`, so a stale write fails with 412. Creating a file that exists fails
+  with 409. Of two parallel writes from one version, exactly one wins, for updates and for creates.
+- A write with `If-Match` to a path that no longer has a file does not fail. OneDrive creates the
+  file and answers 201, which would undo a removal that another device made. The provider removes
+  the file that it just created, using the new `eTag`, and throws `VersionConflictError`. A change
+  by another device in between is left alone. A 404 and a 412 also end as `VersionConflictError`.
 - A read asks for the file metadata first and then for the content through the signed download
   address, which must not carry the token. The version is read before the content, so a change in
   between gives a stale version, which fails the next write and never overwrites silently.

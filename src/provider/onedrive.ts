@@ -66,8 +66,11 @@ export class OneDriveProvider implements SyncProvider {
       throw new VersionConflictError(path);
     }
     await this.assertOk(response);
-    if (expectedVersion !== null && response.status === 201) throw new VersionConflictError(path);
     const result: unknown = await response.json().catch(() => null);
+    if (expectedVersion !== null && response.status === 201) {
+      await this.undoCreate(path, result);
+      throw new VersionConflictError(path);
+    }
     if (!isRecord(result) || typeof result.eTag !== 'string') {
       throw this.invalid('The write returned no version.');
     }
@@ -83,6 +86,19 @@ export class OneDriveProvider implements SyncProvider {
     if (response.status === 404) return;
     if (response.status === 412) throw new VersionConflictError(path);
     await this.assertOk(response);
+  }
+
+  /**
+   * OneDrive creates the file when a write with `If-Match` finds none, which would undo the
+   * removal that another device made. The file that was just created is removed again.
+   */
+  private async undoCreate(path: string, created: unknown): Promise<void> {
+    if (!isRecord(created) || typeof created.eTag !== 'string') return;
+    try {
+      await this.remove(path, created.eTag);
+    } catch (error) {
+      if (!(error instanceof VersionConflictError)) throw error;
+    }
   }
 
   private itemUrl(path: string): string {
