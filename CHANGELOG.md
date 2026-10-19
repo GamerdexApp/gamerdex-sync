@@ -7,6 +7,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-18
+
+### Added
+
+- `AUTH_SERVICE_URL`: the address of the `gamerdex-auth` sign in service. An app can use it as it
+  is, so a new app needs no sign in settings at all, and it can still set its own address.
+
 ## [0.4.0] - 2026-10-18
 
 ### Added

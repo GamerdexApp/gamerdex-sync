@@ -14,3 +14,9 @@ export const CLIENT_IDS = {
   dropbox: 'hs0nd0t45uquupv',
   microsoft: 'ea7ec780-ebfa-42ff-8fd2-a6209d582c57',
 } as const;
+
+/**
+ * The address of the `gamerdex-auth` sign in service, without a provider name at the end. Every
+ * provider swaps and renews its tokens there, GitHub included.
+ */
+export const AUTH_SERVICE_URL = 'https://auth.gamerdex.app/api';

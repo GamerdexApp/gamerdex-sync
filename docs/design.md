@@ -98,12 +98,12 @@ the player decides.
 - Tokens expire after eight hours. `createTokenSource` renews a token that ends within a minute,
   renews once when calls overlap, and signs the player out only when GitHub refuses the refresh
   token or it has run out. A network or server failure keeps the player signed in.
-- The public client IDs of all four providers are in this package (`GITHUB_APP` and `CLIENT_IDS`),
-  so a new app needs no sign in settings. A client ID is in every sign in address and is not a
-  secret. The client secrets are only in the `gamerdex-auth` environment. An app may replace an ID
-  with its own value, such as an environment variable that is set to another client ID. An empty
-  value is the app's way to leave that provider out. Changing a default ID needs a new release of
-  this package.
+- The public client IDs of all four providers and the address of the sign in service are in this
+  package (`GITHUB_APP`, `CLIENT_IDS` and `AUTH_SERVICE_URL`), so a new app needs no sign in
+  settings. A client ID is in every sign in address and is not a secret. The client secrets are only
+  in the `gamerdex-auth` environment. An app may replace an ID with its own value, such as an
+  environment variable that is set to another client ID. An empty value is the app's way to leave
+  that provider out. Changing a default ID needs a new release of this package.
 - The callback page checks the `state` value that it saved before sign in (`readCallback`).
 - The tokens are saved in the browser on the device, outside the saved data, and are never synced.
 

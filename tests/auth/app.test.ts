@@ -1,4 +1,4 @@
-import { CLIENT_IDS, GITHUB_APP } from '@/auth/app';
+import { AUTH_SERVICE_URL, CLIENT_IDS, GITHUB_APP } from '@/auth/app';
 
 describe('CLIENT_IDS', () => {
   it('has the Google client ID in the form that Google issues', () => {
@@ -18,5 +18,14 @@ describe('CLIENT_IDS', () => {
   it('gives each provider a different ID, and none is the GitHub one', () => {
     const ids = [...Object.values(CLIENT_IDS), GITHUB_APP.clientId];
     expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+describe('AUTH_SERVICE_URL', () => {
+  it('is the secure address of the sign in service, with no provider and no trailing slash', () => {
+    const url = new URL(AUTH_SERVICE_URL);
+    expect(url.protocol).toBe('https:');
+    expect(url.hostname).toBe('auth.gamerdex.app');
+    expect(AUTH_SERVICE_URL.endsWith('/api')).toBe(true);
   });
 });
