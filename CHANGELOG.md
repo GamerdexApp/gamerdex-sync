@@ -7,6 +7,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-18
+
+### Added
+
+- `CLIENT_IDS`: the public client IDs of the Gamerdex Sync apps at Google, Dropbox and Microsoft,
+  next to `GITHUB_APP`. An app can use them as they are, so a new app needs no sign in settings, and
+  it can still set its own value.
+
 ## [0.3.1] - 2026-10-18
 
 ### Fixed
